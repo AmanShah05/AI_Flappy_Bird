@@ -5,18 +5,18 @@ import os
 import random
 pygame.font.init()
 
-WIN_WIDTH = 500
+WIN_WIDTH = 600
 WIN_HEIGHT = 800
+STAT_FONT = pygame.font.SysFont("comicsans", 50)
+END_FONT = pygame.font.SysFont("comicsans", 70)
+GEN = 0
+DRAW_LINES = True
 
 #Importing the Images
 BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird" + str(x) + ".png"))) for x in range(1,4)]
 PIPE_IMGS = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))
 BASE_IMGS = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
 BG_IMGS = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))
-
-STAT_FONT = pygame.font.SysFont("comicsans", 50)
-END_FONT = pygame.font.SysFont("comicsans", 70)
-
 
 class Bird:
     IMGS = BIRD_IMGS
@@ -162,7 +162,7 @@ class Base:
         win.blit(self.IMG, (self.x2, self.y))
 
 
-def draw_window(win, birds, pipes, base, score):
+def draw_window(win, birds, pipes, base, score, pipe_ind, GEN):
     win.blit(BG_IMGS, (0, 0))
 
     for pipe in pipes:
@@ -171,12 +171,28 @@ def draw_window(win, birds, pipes, base, score):
     text = STAT_FONT.render("Score: " + str(score), 1, (255, 255, 255))
     win.blit(text, (WIN_WIDTH - 10 - text.get_width(), 10))
 
+    # generations
+    score_label = STAT_FONT.render("Gens: " + str(GEN-1),1,(255,255,255))
+    win.blit(score_label, (10, 10))
+
+    # alive
+    score_label = STAT_FONT.render("Alive: " + str(len(birds)),1,(255,255,255))
+    win.blit(score_label, (10, 50))
+
     base.draw(win)
     for bird in birds:
+        if DRAW_LINES:
+            try:
+                pygame.draw.line(win, (255,0,0), (bird.x+bird.img.get_width()/2, bird.y + bird.img.get_height()/2), (pipes[pipe_ind].x + pipes[pipe_ind].PIPE_TOP.get_width()/2, pipes[pipe_ind].height), 5)
+                pygame.draw.line(win, (255,0,0), (bird.x+bird.img.get_width()/2, bird.y + bird.img.get_height()/2), (pipes[pipe_ind].x + pipes[pipe_ind].PIPE_BOTTOM.get_width()/2, pipes[pipe_ind].bottom), 5)
+            except:
+                pass
         bird.draw(win)
     pygame.display.update()
 
 def main(genomes, config):
+    global GEN
+    GEN += 1
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     nets = []
     ge = []
@@ -197,8 +213,9 @@ def main(genomes, config):
     run = True
     while run and len(birds) > 0:
         clock.tick(30)
+
         for event in pygame.event.get():
-            if event.type == pygame.quit:
+            if event.type == pygame.QUIT:
                 run = False
                 pygame.quit()
                 quit()
@@ -219,8 +236,8 @@ def main(genomes, config):
             if output[0] > 0.5:  # we use a tanh activation function so result will be between -1 and 1. if over 0.5 jump
                 bird.jump()
 
-        add_pipe = False
         base.move()
+        add_pipe = False
         rem = []
         for pipe in pipes:
             for x, bird in enumerate(birds):
@@ -231,9 +248,9 @@ def main(genomes, config):
                     ge.pop(x)
 
                 
-                if not pipe.passed and pipe.x < bird.x:
-                    pipe.passed = True
-                    add_pipe = True
+            if not pipe.passed and pipe.x < bird.x:
+                pipe.passed = True
+                add_pipe = True
 
             if pipe.x + pipe.PIPE_TOP.get_width() < 0:
                 rem.append(pipe)
@@ -250,12 +267,12 @@ def main(genomes, config):
             pipes.remove(r)
 
         for x, bird in enumerate(birds):
-            if bird.y + bird.img.get_height() >= 730 or bird.y < 0:
+            if bird.y + bird.img.get_height() >= 730 or bird.y < -40:
                     birds.pop(x)
                     nets.pop(x)
                     ge.pop(x)
 
-        draw_window(win, birds, pipes, base, score)
+        draw_window(win, birds, pipes, base, score, pipe_ind, GEN)
     
 
 
